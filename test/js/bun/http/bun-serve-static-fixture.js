@@ -2,7 +2,9 @@ import { serve } from "bun";
 
 let server = Bun.serve({
   port: 0,
-  development: true,
+  development: {
+    hmr: false,
+  },
   async fetch(req) {
     return new Response("Hello World", {
       status: 404,
@@ -18,12 +20,10 @@ process.on("message", async message => {
   }
 
   server.reload({
+    // omit "fetch" to check we can do server.reload without passing fetch
     static: routes,
-    development: true,
-    fetch(req) {
-      return new Response("Hello World", {
-        status: 404,
-      });
+    development: {
+      hmr: false,
     },
   });
 });
