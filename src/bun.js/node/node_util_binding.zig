@@ -120,7 +120,7 @@ pub fn extractedSplitNewLinesFastPathStringsOnly(globalThis: *JSC.JSGlobalObject
     const value = callframe.argument(0);
     bun.assert(value.isString());
 
-    const str = try value.toBunString2(globalThis);
+    const str = try value.toBunString(globalThis);
     defer str.deref();
 
     return switch (str.encoding()) {
@@ -130,6 +130,14 @@ pub fn extractedSplitNewLinesFastPathStringsOnly(globalThis: *JSC.JSGlobalObject
         else
             return JSC.JSValue.jsUndefined(),
     };
+}
+
+extern fn Bun__util__isInsideNodeModules(globalObject: *JSC.JSGlobalObject, callFrame: *JSC.CallFrame) bool;
+/// Walks the call stack from bottom to top, returning `true` when it finds a
+/// frame within a `node_modules` directory.
+pub fn isInsideNodeModules(globalObject: *JSC.JSGlobalObject, callframe: *JSC.CallFrame) bun.JSError!JSC.JSValue {
+    const res = Bun__util__isInsideNodeModules(globalObject, callframe);
+    return JSC.JSValue.jsBoolean(res);
 }
 
 fn split(
@@ -193,4 +201,14 @@ pub fn SplitNewlineIterator(comptime T: type) type {
             }
         }
     };
+}
+
+pub fn normalizeEncoding(globalThis: *JSC.JSGlobalObject, callframe: *JSC.CallFrame) bun.JSError!JSC.JSValue {
+    const input = callframe.argument(0);
+    const str = bun.String.fromJS(input, globalThis);
+    bun.assert(str.tag != .Dead);
+    defer str.deref();
+    if (str.length() == 0) return JSC.Node.Encoding.utf8.toJS(globalThis);
+    if (str.inMapCaseInsensitive(JSC.Node.Encoding.map)) |enc| return enc.toJS(globalThis);
+    return JSC.JSValue.jsUndefined();
 }

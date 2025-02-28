@@ -1859,17 +1859,14 @@ it("#11425 http no payload limit", done => {
 });
 
 it("should emit events in the right order", async () => {
-  const { stdout, stderr, exited } = Bun.spawn({
+  const { stdout, exited } = Bun.spawn({
     cmd: [bunExe(), "run", path.join(import.meta.dir, "fixtures/log-events.mjs")],
     stdout: "pipe",
     stdin: "ignore",
-    stderr: "pipe",
+    stderr: "inherit",
     env: bunEnv,
   });
-  const err = await new Response(stderr).text();
-  expect(err).toBeEmpty();
   const out = await new Response(stdout).text();
-  // TODO prefinish and socket are not emitted in the right order
   expect(out.split("\n")).toEqual([
     `[ "req", "prefinish" ]`,
     `[ "req", "socket" ]`,
@@ -1884,6 +1881,7 @@ it("should emit events in the right order", async () => {
     // `[ "res", "close" ]`,
     "",
   ]);
+  expect(await exited).toBe(0);
 });
 
 it("destroy should end download", async () => {
@@ -2556,4 +2554,16 @@ it("client should use content-length if only one write is called", async () => {
   expect(chunks.length).toBe(1);
   expect(chunks[0]?.toString()).toBe("Hello World BUN!");
   expect(Buffer.concat(chunks).toString()).toBe("Hello World BUN!");
+});
+
+it("should allow Strict-Transport-Security when using node:http", async () => {
+  await using server = http.createServer((req, res) => {
+    res.writeHead(200, { "Strict-Transport-Security": "max-age=31536000" });
+    res.end();
+  });
+  server.listen(0, "localhost");
+  await once(server, "listening");
+  const response = await fetch(`http://localhost:${server.address().port}`);
+  expect(response.status).toBe(200);
+  expect(response.headers.get("strict-transport-security")).toBe("max-age=31536000");
 });
